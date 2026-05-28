@@ -25,7 +25,11 @@ import os
 from collections import OrderedDict
 
 import numpy as np
-from robocasa.utils.dataset_registry import LIFELONG_LEARNING_TASKS, TARGET_TASKS
+from robocasa.utils.dataset_registry import (
+    LIFELONG_LEARNING_TASKS,
+    TARGET_TASKS,
+    TASK_SET_REGISTRY,
+)
 from termcolor import colored
 
 # Splits written by the eval loop. "pretrain" = base checkpoint, "target" = finetuned.
@@ -59,6 +63,9 @@ TASK_GROUP_MAPPING["lifelong_learning_phase1"] = TARGET_TASKS["atomic_seen"]
 TASK_GROUP_MAPPING["lifelong_learning_phase2"] = LIFELONG_LEARNING_TASKS["lifelong_learning_phase2"]
 TASK_GROUP_MAPPING["lifelong_learning_phase3"] = LIFELONG_LEARNING_TASKS["lifelong_learning_phase3"]
 TASK_GROUP_MAPPING["lifelong_learning_phase4"] = LIFELONG_LEARNING_TASKS["lifelong_learning_phase4"]
+# Generalization seen/unseen split (used by the train-on-seen, eval-on-unseen workflow).
+TASK_GROUP_MAPPING["seen_tasks"] = TASK_SET_REGISTRY["seen_tasks"]
+TASK_GROUP_MAPPING["unseen_tasks"] = TASK_SET_REGISTRY["unseen_tasks"]
 
 
 def compute_stats(

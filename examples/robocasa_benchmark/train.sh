@@ -13,7 +13,7 @@
 torchrun --nproc_per_node=2 --master_port=29500 \
     scripts/gr00t_finetune_soup.py \
     --split pretrain \
-    --task_set atomic_seen \
+    --task_set seen_tasks \
     --source human \
     --base_model_path nvidia/GR00T-N1.7-3B \
     --embodiment_tag ROBOCASA_PANDA_OMRON \

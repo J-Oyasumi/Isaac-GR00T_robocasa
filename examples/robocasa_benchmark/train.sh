@@ -12,7 +12,9 @@
 
 torchrun --nproc_per_node=2 --master_port=29500 \
     scripts/gr00t_finetune_soup.py \
-    --dataset_soup pretrain_atomic_seen \
+    --split pretrain \
+    --task_set atomic_seen \
+    --source human \
     --base_model_path nvidia/GR00T-N1.7-3B \
     --embodiment_tag ROBOCASA_PANDA_OMRON \
     --modality_config_path examples/robocasa_benchmark/modality_config.py \

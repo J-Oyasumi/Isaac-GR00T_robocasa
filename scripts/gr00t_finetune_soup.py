@@ -49,8 +49,17 @@ from gr00t.experiment.experiment import run
 
 @dataclass
 class SoupFinetuneConfig:
-    dataset_soup: str
-    """Soup name in robocasa-benchmark DATASET_SOUP_REGISTRY (e.g. atomic_seen)."""
+    # Soup selection: EITHER a named registry soup, OR build one from (split, task_set, source).
+    dataset_soup: str | None = None
+    """Named soup from robocasa-benchmark DATASET_SOUP_REGISTRY (e.g. pretrain_atomic_seen).
+    If None, the soup is built from --split/--task_set/--source via get_ds_soup."""
+
+    split: str = "pretrain"
+    """get_ds_soup split when dataset_soup is None: pretrain / target / real."""
+    task_set: str = "atomic_seen"
+    """get_ds_soup task_set when dataset_soup is None (a TASK_SET_REGISTRY name)."""
+    source: str = "human"
+    """get_ds_soup source when dataset_soup is None: human / mg / mg_5x5 / mg_5x1 / all."""
 
     base_model_path: str = "nvidia/GR00T-N1.7-3B"
     output_dir: str = "./outputs"
@@ -106,12 +115,25 @@ def _dataset_length(path: str) -> int:
     return int(info["total_frames"])
 
 
-def build_dataset_specs(soup: str, embodiment_tag: str, alpha: float) -> list[dict]:
-    """Resolve a soup into weighted single-path dataset specs."""
-    from robocasa.utils.dataset_registry import DATASET_SOUP_REGISTRY
+def build_dataset_specs(cfg: "SoupFinetuneConfig", embodiment_tag: str) -> list[dict]:
+    """Resolve the soup into weighted single-path dataset specs.
 
-    assert soup in DATASET_SOUP_REGISTRY, f"unknown soup: {soup}"
-    members = DATASET_SOUP_REGISTRY[soup]
+    Either a named DATASET_SOUP_REGISTRY soup, or one built on the fly from
+    (split, task_set, source) via get_ds_soup — the latter lets you train on the
+    human source for a task_set that has no predefined named soup.
+    """
+    from robocasa.utils.dataset_registry import DATASET_SOUP_REGISTRY
+    from robocasa.utils.dataset_registry_utils import get_ds_soup
+
+    alpha = cfg.ds_weights_alpha
+    if cfg.dataset_soup is not None:
+        assert cfg.dataset_soup in DATASET_SOUP_REGISTRY, f"unknown soup: {cfg.dataset_soup}"
+        members = DATASET_SOUP_REGISTRY[cfg.dataset_soup]
+        label = cfg.dataset_soup
+    else:
+        members = get_ds_soup(split=cfg.split, task_set=cfg.task_set, source=cfg.source)
+        label = f"{cfg.split}/{cfg.task_set}/{cfg.source}"
+    assert len(members) > 0, f"empty soup: {label}"
 
     specs = []
     filter_keys = set()
@@ -128,7 +150,7 @@ def build_dataset_specs(soup: str, embodiment_tag: str, alpha: float) -> list[di
         specs.append({"path": path, "length": length, "mix_ratio": float(np.power(length, alpha))})
 
     # debug: resolved soup composition and weights
-    print(colored(f"[soup] {soup}: {len(specs)} datasets (alpha={alpha})", "cyan"))
+    print(colored(f"[soup] {label}: {len(specs)} datasets (alpha={alpha})", "cyan"))
     for s in specs:
         print(colored(f"  {s['path']}  frames={s['length']:,}  mix_ratio={s['mix_ratio']:.4f}", "cyan"))
     if filter_keys:
@@ -166,7 +188,7 @@ def main(cfg: SoupFinetuneConfig):
         load_modality_config(cfg.modality_config_path)
 
     embodiment_tag = EmbodimentTag.resolve(cfg.embodiment_tag).value
-    datasets = build_dataset_specs(cfg.dataset_soup, embodiment_tag, cfg.ds_weights_alpha)
+    datasets = build_dataset_specs(cfg, embodiment_tag)
 
     config = get_default_config().load_dict(
         {"data": {"download_cache": False, "datasets": datasets}}
